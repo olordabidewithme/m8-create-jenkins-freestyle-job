@@ -18,143 +18,164 @@ CI Pipeline for a Java Maven application to build and push to the repository
    - c. Build Docker Image
    - d. Push to private DockerHub repository
 
-## Study Notes
-	- 2 Roles
-		- Administrator
-			- manage jenkins, setup jenkins cluster, install plugins, backup data
-		- Jenkin user
-			- create actual job
 
-	- Build tools
-		- Maven
-			- Java App
-			- Run tests
-			- build jar file
-		- Npm
-			- Node App
-			- Run tests,
-			- package and push to repostory
+1. Install Build Tools (Maven, Node) in Jenkins
+	- Maven
+		- Usage
+			- For Java App, Run Tests, Build Jar File
+		- Install via Pulgins (Way 1)
+			- Manage Jenkins > Tools > Add Maven
+				- Name : maven-3.9
+				- Version : 3.9.2
+	- Node
+		- Usage
+			- For Node App, Run Tests, Package & Push to repository
+		- Install On Container (Way 2)
+			- npm & node
+			- docker exec -u 0 -it jenkins_container_id bash
+			- apt update
+			- Download & Install curl, curl is a command-line tool for transferring data with URLs
+				- apt install curl
+			- Output information such as the distribution name and version of the operating system.
+				- cat /etc/issue
+			- Downloads the NodeSource setup script for Node.js version 20.x and saves it as nodesource_setup.sh.
+				- curl -sL https://deb.nodesources.com/setup_20.x -o nodesource_setup.sh
+			- This command executes the downloaded script. The script configures your system’s package manager (like apt) to use the NodeSource repository, making it easier to install and manage Node.js.
+				- bash nodesource_setup.sh
+			- Installs Node.js from the newly added NodeSource repository.
+				- apt install nodejs
+			- verify version of node and npm
+				- node -v
+				- npm -v
+2. Install Stage View Plugin
+	- Usage
+		- shows the progress of each stage
+	- Manage Jenkins > Plugins > Available pulgins
+		- search stage view > install > restart jenkins
+	- Restart container
+	- Manage Jenkins > Pulgins > Installed plugins 
+		- verify stage view is installed
 
-		- 2 ways to install
-			- jenkins plugins
-				- Tools
-					- Maven
-						-3.9.2
-						-install from apache
-					- Npm
-						- docker exec -u 0 -it container_id bash
-						- cat /etc/issue
-						- apt update
-						- apt install curl
-						- install npm
-							- curl -sL https://deb.nodesources.com/setup_20.x -o nodesource_setup.sh
-							- bash nodesource_setup.sh
-						- install node
-							- apt install nodejs
-						- verify version of npm and node
-							- node -v
-							- npm -v
-					- stage view plugin
-						- show progress of each stage
-			- install directly on server
-				- more flexible
-			- inside jenkins container
-		- create job
-			- job type
-				- freestyle
-				- pipeline
-				- multibranch pipeline
-			- freestyle
-				- name : my-job
-				- build step 1 : execute shell
-					- npm --version
-				- build step 2 : invoke top-level Maven targets
-					- Maven Version : maven 3.9
-					- Goals : --version 
-				- install nodejs plugin
-					- Manage Jenkins > Pulgins > node
-					- Manage Jenkins > Tools > Add NodeJS
-						- Name : my-nodejs
-						- Version : NodeJS 20.2.0
-					- go to job
-						- execute nodejs plugin
-				- go to job : "my-job"
-					- Add build steps
-						- Execute NodeJS script
-							- choose my-nodejs
-							- Script: 
-		- configure git repository
-			- source code management
-				- repository url
-				- add credential
-					- kind : Username with password
+3. Connect to the application's Git repository
+	- Configure job (my-job)
+		- Source code management
+			- Select Git
+				- Input repository URL
+				- Add credentials
+					- kind : username and password
 					- id : gitlab-credentials
-					- supply username and password
-		- view jenkins data
-			- docker exec -it container_id bash
-			- ls /var/jenkins_home/
-				- Jobs
-					- ls /var/jenkins_home/jobs
-					- ls /var/jenins_home/workspace/
-		- run shell
-			- chmod +x freestyle-build.sh
-			- ./freestyle-build.sh
-		- run test and build java application
-			- create a new job
-				- java-maven-build
-					- git repository url
-					- select bracnh
-					- build step1
-						- Maven version : maven 3.9
-						- Goals : test
-					- build step2
-						- Maven version : maven 3.9
-						- Goals : package
-		- make docker available inside container
-					- stop container
-						- docker stop jenkis_container_id
-					- run new container
+	- view jenkins data
+		- docker exec -it container_id bash
+		- ls /var/jenkins_home/
+			- Credentials
+			- Pulgins
+			- Jobs
+				- ls /var/jenkins_home/jobs
+				- ls /var/jenins_home/workspace/
+			
+4. Create a new freestyle job "java-maven-build"
+	- Add Builds Steps
+		- step1 : invoke top-level Maven targets
+			- Maven Version : Maven-3.9
+			- Goals : test
+		- step2 : invoke top-level Maven targets
+			- Maven Version : Maven-3.9
+			- Goals : package
+
+5. Make Docker available on Jenkins Container (docker out of docker)
+	- Stop container
+		- docker stop jenkins_container_id
+	- Mount the Docker socket (/var/run/docker.sock) and re-run container
 ```bash
 docker run -p 8080:8080 -p 50000:50000 -d \
--v jenkins_home:/var/jenkins_home
+-v jenkins_home:/var/jenkins_home 
 -v /var/run/docker.sock:/var/run/docker.sock jenkins/jenkins:lts
-``` 
-					- docker exec -u 0 -it jenkis_container_id bash
-					- curl https://get.docker.com/ > dockerinstall && chmod 777 dockerinstall && ./dockerinstall
-					-add permission (read & write)
-						- chmod 666 /var/run/docker.sock
-					-build step3
-						- Execute shell
-							- docker build -t java-maven-app:1.0
-					push to docker repository (private)
-						-docker hub , create private repository
-							- Add credentials
-			-	
-					- Id: docker-hub-repo
-					- tick use secret text(s) or file(s)
-						- Username and password
-							- USERNAME
-							- PASSWORD
-```bash
-docker build -t olordabidewithme/demo-app:jma-1.0
-docker login -u $USERNAME -p $PASSWORD
-echo $PASSWORD | docker login -u $USERNAME --password-stdin
-docker push olordabidewithme/demo-app:jma-1.0
 ```
-					push to nexus
-						- vim /etc/docker/daemon.json
-						- insecure-registries : ["ip:8083"]
-						- systemctl restart docker
-						-docker start container_id
-						-docker exec -u 0 it container_id bash
-						-chmod 666 /var/run/docker.sock
-					create creditial
-						- ID: nexus-docker-repo
-					change script
+	- install docker cli
+		- docker exec -u 0 -it jenkis_container_id bash
+		- curl https://get.docker.com/ > dockerinstall && chmod 777 dockerinstall && ./dockerinstall
+	- gives access to the host's Docker Engine
+			- on the host, add permission (read & write)
+			- chmod 666 /var/run/docker.sock
+			- docker commands can be executed in jenkins container now.
+
+6. Build and Push to private DockerHub repository
+	- create private repository in docker hub 
+		- demo-app
+	- create credentials
+		- Manage Jenkins > Security > Credentials
+			- kind : username and password
+			- id : docker-hub-repo
+
+	- build docker image by Jenkins
+		- Configure "java-maven-build" job
+			- Build environment
+				- tick secret text or file & select "username and password"
+				- specify user name variable "USERNAME"
+				- specify password variable "PASSWORD"
+				- choose "docker-hub-repo" credentials
+			- Add build steps
+				- Execute Shells
+					- docker build -t olordabidewithme/demo-app:jma-1.0 .
+					- docker login -u $USERNAME -p $PASSWORD
+					- echo $PASSWORD | docker login -u $USERNAME --password-stdin
+					- docker push olordabidewithme/demo-app:jma-1.0
+
+7. Build and Push to private Nexus repository
+	- create daemon.json
+		- vim /etc/docker/daemon.json
 ```bash
-docker build -t ip:8083/java-maven-app:1.1
-docker login -u $USERNAME -p $PASSWORD
-echo $PASSWORD | docker login -u $USERNAME --password-stdin
-docker push ip:8083/java-maven-app:1.1
+{
+	"insecure-registries" : ["ip:port"]
+}
 ```
+	- restart docker
+		- systemctl restart docker
+		- docker start jenkins_container_id
+	- run as root
+		- docker exec -u 0 -it jenkins_container_id bash
+		- chmod 666 /var/docker/docker.sock
+
+	- create credentials
+		- Manage Jenkins > Security > Credentials
+			- kind : username and password
+			- id : nexus-docker-repo
+	- Add build steps
+		- Execute Shells
+			- docker build -t 192.168.32.32:8081/java-maven-app:1.0 .
+			- docker login -u $USERNAME -p $PASSWORD
+			- echo $PASSWORD | docker login -u $USERNAME --password-stdin 192.168.32.32:8081
+			- docker push ip:port/java-maven-app:1.0
+
+
+
+8. Others : Create Freestyle Job [Demo Only]
+	- Name : my-job
+	- Build Steps
+		- Step 1: execute shell
+			- npm --version
+				- directly installed on server, more flexible
+		- Step 2 : invoke top level Maven target
+			- limited to the provided input fields
+			- Maven version : maven-3.9
+			- Goals : --version
+	- Install Nodejs Pulgin
+		- Manage Jenkins > Available Pulgins 
+			- Search nodejs and install it
+		- Manage Jenkins > Tools > NodeJs > Add NodesJs
+			- Name : my-nodejs
+			- Version : NodeJS20.2.0
+			- Install automatially.
+	- Configure Job "my-job"
+		- Step 3 : Execute NodeJS Script [Demo Only, Remove]
+			- select "my-nodejs" installation
+		- Step 1 : instead of running "npm --version", running from a shell script
+			- Create a new branch "jenkins-jobs" and add "freestyle-build.sh"
+			- Switch to the new branch "jenkins-jobs"
+			- Build Step 1 : instead of running "npm --version", running from a shell script
+			- ```bash
+			  chmod +x freestyle-build.sh
+			  ./freestyle-build.sh
+			  ```
+
 
