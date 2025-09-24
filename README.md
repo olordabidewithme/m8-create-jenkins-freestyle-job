@@ -19,7 +19,7 @@ CI Pipeline for a Java Maven application to build and push to the repository
    - d. Push to private DockerHub repository
 
 
-1. Install Build Tools (Maven, Node) in Jenkins
+1. Install Build Tools (Maven, Node) & Stage View Pulgins in Jenkins
 	- Maven
 		- Usage
 			- For Java App, Run Tests, Build Jar File
@@ -47,42 +47,16 @@ CI Pipeline for a Java Maven application to build and push to the repository
 			- verify version of node and npm
 				- node -v
 				- npm -v
-2. Install Stage View Plugin
-	- Usage
-		- shows the progress of each stage
-	- Manage Jenkins > Plugins > Available pulgins
-		- search stage view > install > restart jenkins
-	- Restart container
-	- Manage Jenkins > Pulgins > Installed plugins 
-		- verify stage view is installed
+	- Stage View Plugin
+		- Usage
+			- shows the progress of each stage
+		- Manage Jenkins > Plugins > Available pulgins
+			- search stage view > install > restart jenkins
+		- Restart container
+		- Manage Jenkins > Pulgins > Installed plugins 
+			- verify stage view is installed
 
-3. Connect to the application's Git repository
-	- Configure job (my-job)
-		- Source code management
-			- Select Git
-				- Input repository URL
-				- Add credentials
-					- kind : username and password
-					- id : gitlab-credentials
-	- view jenkins data
-		- docker exec -it container_id bash
-		- ls /var/jenkins_home/
-			- Credentials
-			- Pulgins
-			- Jobs
-				- ls /var/jenkins_home/jobs
-				- ls /var/jenins_home/workspace/
-			
-4. Create a new freestyle job "java-maven-build"
-	- Add Builds Steps
-		- step1 : invoke top-level Maven targets
-			- Maven Version : Maven-3.9
-			- Goals : test
-		- step2 : invoke top-level Maven targets
-			- Maven Version : Maven-3.9
-			- Goals : package
-
-5. Make Docker available on Jenkins Container (docker out of docker)
+2. Make Docker available on Jenkins Server
 	- Stop container
 		- docker stop jenkins_container_id
 	- Mount the Docker socket (/var/run/docker.sock) and re-run container
@@ -91,7 +65,7 @@ docker run -p 8080:8080 -p 50000:50000 -d \
 -v jenkins_home:/var/jenkins_home 
 -v /var/run/docker.sock:/var/run/docker.sock jenkins/jenkins:lts
 ```
-	- install docker cli
+	- install docker cli in jenkins container
 		- docker exec -u 0 -it jenkis_container_id bash
 		- curl https://get.docker.com/ > dockerinstall && chmod 777 dockerinstall && ./dockerinstall
 	- gives access to the host's Docker Engine
@@ -99,10 +73,31 @@ docker run -p 8080:8080 -p 50000:50000 -d \
 			- chmod 666 /var/run/docker.sock
 			- docker commands can be executed in jenkins container now.
 
+
+3. Create Jenkins credentials for a Git repository
+	- Manage Jenkins > Security > Create Credentials
+		- kind : username and password
+		- id : gitlab-credentials
+
+4. Create a new freestyle job "java-maven-build"
+	- Connet to application build repository
+		- Source code management
+			- select Git
+			- selct credentials : gitlab-credentials
+	- Add Builds Steps
+		- test : invoke top-level Maven targets
+			- Maven Version : Maven-3.9
+			- Goals : test
+		- build : invoke top-level Maven targets
+			- Maven Version : Maven-3.9
+			- Goals : package
+
+
+			
 6. Build and Push to private DockerHub repository
 	- create private repository in docker hub 
 		- demo-app
-	- create credentials
+	- create jenkins credentials for docker hub 
 		- Manage Jenkins > Security > Credentials
 			- kind : username and password
 			- id : docker-hub-repo
@@ -136,7 +131,7 @@ docker run -p 8080:8080 -p 50000:50000 -d \
 		- docker exec -u 0 -it jenkins_container_id bash
 		- chmod 666 /var/docker/docker.sock
 
-	- create credentials
+	- create jenkins credentials for nexus
 		- Manage Jenkins > Security > Credentials
 			- kind : username and password
 			- id : nexus-docker-repo
@@ -177,5 +172,11 @@ docker run -p 8080:8080 -p 50000:50000 -d \
 			  chmod +x freestyle-build.sh
 			  ./freestyle-build.sh
 			  ```
-
-
+	- view jenkins data
+		- docker exec -it container_id bash
+		- ls /var/jenkins_home/
+			- Credentials
+			- Pulgins
+			- Jobs
+				- ls /var/jenkins_home/jobs
+				- ls /var/jenins_home/workspace/
