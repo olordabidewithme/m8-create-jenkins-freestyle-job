@@ -25,7 +25,7 @@ CI Pipeline for a Java Maven application to build and push to the repository
 			- For Java App, Run Tests, Build Jar File
 		- Install via Pulgins (Way 1)
 			- Manage Jenkins > Tools > Add Maven
-				- Name : maven-3.9
+				- Name : maven-3.9.2
 				- Version : 3.9.2
 	- Node
 		- Usage
@@ -39,7 +39,7 @@ CI Pipeline for a Java Maven application to build and push to the repository
 			- Output information such as the distribution name and version of the operating system.
 				- cat /etc/issue
 			- Downloads the NodeSource setup script for Node.js version 20.x and saves it as nodesource_setup.sh.
-				- curl -sL https://deb.nodesources.com/setup_20.x -o nodesource_setup.sh
+				- curl -sL https://deb.nodesource.com/setup_22.x -o nodesource_setup.sh
 			- This command executes the downloaded script. The script configures your system’s package manager (like apt) to use the NodeSource repository, making it easier to install and manage Node.js.
 				- bash nodesource_setup.sh
 			- Installs Node.js from the newly added NodeSource repository.
@@ -62,14 +62,14 @@ CI Pipeline for a Java Maven application to build and push to the repository
 	- Mount the Docker socket (/var/run/docker.sock) and re-run container
 ```bash
 docker run -p 8080:8080 -p 50000:50000 -d \
--v jenkins_home:/var/jenkins_home 
+-v jenkins_home:/var/jenkins_home \ 
 -v /var/run/docker.sock:/var/run/docker.sock jenkins/jenkins:lts
 ```
-	- install docker cli in jenkins container
+	- install docker cli in jenkins container as root user
 		- docker exec -u 0 -it jenkis_container_id bash
 		- curl https://get.docker.com/ > dockerinstall && chmod 777 dockerinstall && ./dockerinstall
 	- gives access to the host's Docker Engine
-			- on the host, add permission (read & write)
+			- in the container, add permission (read & write)
 			- chmod 666 /var/run/docker.sock
 			- docker commands can be executed in jenkins container now.
 
@@ -77,20 +77,27 @@ docker run -p 8080:8080 -p 50000:50000 -d \
 3. Create Jenkins credentials for a Git repository
 	- Manage Jenkins > Security > Create Credentials
 		- kind : username and password
-		- id : gitlab-credentials
+		- id : git-credentials
 
 4. Create a new freestyle job "java-maven-build"
 	- Connet to application build repository
 		- Source code management
 			- select Git
-			- selct credentials : gitlab-credentials
+			- selct credentials : git-credentials
 	- Add Builds Steps
 		- test : invoke top-level Maven targets
 			- Maven Version : Maven-3.9
 			- Goals : test
-		- build : invoke top-level Maven targets
+		- build package : invoke top-level Maven targets
 			- Maven Version : Maven-3.9
 			- Goals : package
+		- build image : execute shell
+			- docker build -t java-maven-app:1.0 .
+	- Check Jenkins Directory
+		- /var/jenkins_home/jobs/java-maven-build
+		- /var/jenkins_home/workspace/java-maven-build
+			- repository files
+			- target/*.jar
 
 
 			
@@ -111,13 +118,15 @@ docker run -p 8080:8080 -p 50000:50000 -d \
 				- choose "docker-hub-repo" credentials
 			- Add build steps
 				- Execute Shells
-					- docker build -t olordabidewithme/demo-app:jma-1.0 .
-					- docker login -u $USERNAME -p $PASSWORD
-					- echo $PASSWORD | docker login -u $USERNAME --password-stdin
-					- docker push olordabidewithme/demo-app:jma-1.0
+					- build & push
+						- docker build -t olordabidewithme/demo-app:jma-1.0 .
+						- docker login -u $USERNAME -p $PASSWORD <-- this is not good practice
+						- echo $PASSWORD | docker login -u $USERNAME --password-stdin
+						- docker push olordabidewithme/demo-app:jma-1.0
 
 7. Build and Push to private Nexus repository
 	- create daemon.json
+		- The daemon.json file is Docker's configuration file for the Docker daemon (dockerd). It allows you to configure various aspects of Docker's behavior without using command-line flags.
 		- vim /etc/docker/daemon.json
 ```bash
 {
@@ -178,5 +187,7 @@ docker run -p 8080:8080 -p 50000:50000 -d \
 			- Credentials
 			- Pulgins
 			- Jobs
+				- builds
 				- ls /var/jenkins_home/jobs
 				- ls /var/jenins_home/workspace/
+					- repository
