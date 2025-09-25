@@ -75,15 +75,22 @@ docker run -p 8080:8080 -p 50000:50000 -d \
 
 
 3. Create Jenkins credentials for a Git repository
+	- Generate access token in Git
+		- settings > developer settings > personal access token (classic) > generate new token (classic)
+			- token name : jenkins-git-token
 	- Manage Jenkins > Security > Create Credentials
 		- kind : username and password
 		- id : git-credentials
+		- username : olordabidewithme
+		- password : access_token_from_git 
 
 4. Create a new freestyle job "java-maven-build"
 	- Connet to application build repository
 		- Source code management
 			- select Git
 			- selct credentials : git-credentials
+			- branch specifier : main
+			- git url : https://github.com/olordabidewithme/m8-create-jenkins-freestyle-job.git
 	- Add Builds Steps
 		- test : invoke top-level Maven targets
 			- Maven Version : Maven-3.9
@@ -112,7 +119,7 @@ docker run -p 8080:8080 -p 50000:50000 -d \
 	- build docker image by Jenkins
 		- Configure "java-maven-build" job
 			- Build environment
-				- tick secret text or file & select "username and password"
+				- tick secret text or file > select "username and password (seperated)"
 				- specify user name variable "USERNAME"
 				- specify password variable "PASSWORD"
 				- choose "docker-hub-repo" credentials
